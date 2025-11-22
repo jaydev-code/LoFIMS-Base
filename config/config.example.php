@@ -2,5 +2,5 @@
 $host = "localhost";
 $dbname = "LoFIMS_BASE";
 $user = "root";
-$pass = "eljay108598100018"; 
+$pass = "your_password_here"; 
 
