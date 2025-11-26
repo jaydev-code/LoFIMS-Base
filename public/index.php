@@ -1,127 +1,40 @@
-<?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: auth/login.php");
-    exit();
-}
-
-require_once __DIR__ . '/../config/config.php';
-
-try {
-    $totalLost = $pdo->query("SELECT COUNT(*) FROM lost_items WHERE status='Lost'")->fetchColumn();
-    $totalFound = $pdo->query("SELECT COUNT(*) FROM found_items WHERE status='Found'")->fetchColumn();
-    $totalClaims = $pdo->query("SELECT COUNT(*) FROM claims")->fetchColumn();
-} catch (PDOException $e) {
-    die("Error fetching data: " . $e->getMessage());
-}
-?>
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Lost & Found Dashboard</title>
+    <title>TUP Lost & Found System</title>
     <style>
+        html, body { height: 100%; margin: 0; font-family: Arial, sans-serif; }
         body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f8f9fa;
+            display: flex; justify-content: center; align-items: center;
+            background: url('assets/images/Background_Images.jpg') no-repeat center center fixed;
+            background-size: cover; position: relative;
         }
-
-        /* HEADER */
-        header {
-            background-color: #ff8787;
-            padding: 15px 25px;
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        body::before {
+            content: ""; position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; background: inherit; filter: blur(8px); z-index: 0;
         }
-
-        header h2 {
-            margin: 0;
+        .welcome-box {
+            position: relative; z-index: 1; background-color: rgba(88,45,47,0.85);
+            padding: 50px; border-radius: 10px; text-align: center; color: white;
         }
-
-        .logout-btn {
-            background: #ff4d4d;
-            padding: 10px 18px;
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: 0.2s;
+        .welcome-box h1 { font-size: 42px; margin-bottom: 20px; text-shadow: 2px 2px 8px rgba(0,0,0,0.7);}
+        .welcome-box p { font-size: 18px; margin-bottom: 30px; }
+        .welcome-box a {
+            display: inline-block; margin: 10px; padding: 12px 25px; background: #ff4d4d;
+            color: white; text-decoration: none; border-radius: 5px; font-weight: bold; transition: 0.2s;
         }
-        .logout-btn:hover {
-            background: #ff1a1a;
-        }
-
-        /* DASHBOARD BOXES */
-        .container {
-            margin-top: 40px;
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-        }
-
-        .box {
-            width: 220px;
-            height: 150px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-size: 22px;
-            font-weight: bold;
-            text-align: center;
-            transition: 0.2s;
-            cursor: pointer;
-            text-decoration: none;
-            color: #333;
-        }
-
-        .box:hover {
-            transform: scale(1.05);
-            background: #ffe5e5;
-        }
-
-        .box h2 {
-            font-size: 36px;
-            margin: 0;
-            color: #007bff;
-        }
-        .box p {
-            margin: 5px 0 0;
-            font-size: 18px;
-            color: #555;
-        }
+        .welcome-box a:hover { background: #b01f24; }
     </style>
 </head>
 <body>
 
-<header>
-    <h2>Lost & Found System</h2>
-    <a class="logout-btn" href="auth/logout.php">Logout</a>
-</header>
-
-<div class="container">
-    <a href="lost_items.php" class="box">
-        <h2><?= $totalLost ?></h2>
-        <p>Lost Items</p>
-    </a>
-
-    <a href="found_items.php" class="box">
-        <h2><?= $totalFound ?></h2>
-        <p>Found Items</p>
-    </a>
-
-    <a href="claim_item.php" class="box">
-        <h2><?= $totalClaims ?></h2>
-        <p>Claims</p>
-    </a>
+<div class="welcome-box">
+    <h1>Welcome to TUP Lost & Found System</h1>
+    <p>Track, report, and claim lost or found items easily.</p>
+    <a href="login.php">Login</a>
+    <a href="register.php">Register</a>
+    <a href="lost_items.php">View Lost Items</a>
+    <a href="found_items.php">View Found Items</a>
 </div>
 
 </body>
