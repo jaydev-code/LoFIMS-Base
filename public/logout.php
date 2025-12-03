@@ -2,6 +2,8 @@
 session_start();
 session_unset();
 session_destroy();
-header("Location: ../public/index.php");
+header("Location: index.php"); // or absolute path
 exit;
+
+?>
 
