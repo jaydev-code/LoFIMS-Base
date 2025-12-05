@@ -135,12 +135,29 @@ body{background:#f4f6fa;display:flex;min-height:100vh;overflow-x:hidden;color:#3
         <span>LoFIMS Admin</span>
     </div>
     <ul>
-        <li class="active" data-page="dashboard.php"><i class="fas fa-home"></i><span>Dashboard</span></li>
-        <li data-page="manage_users/"><i class="fas fa-users"></i><span>Manage Users</span></li>
-        <li data-page="generate_reports/"><i class="fas fa-chart-line"></i><span>Reports</span></li>
-        <li data-page="categories.php"><i class="fas fa-tags"></i><span>Categories</span></li>
-        <li data-page="announcements.php"><i class="fas fa-bullhorn"></i><span>Announcements</span></li>
-        <li data-page="logout.php"><i class="fas fa-right-from-bracket"></i><span>Logout</span></li>
+        <li onclick="saveSidebarState(); window.location.href='dashboard.php'">
+            <i class="fas fa-home"></i><span>Dashboard</span>
+        </li>
+        
+        <li onclick="saveSidebarState(); window.location.href='manage_user.php'">
+            <i class="fas fa-users"></i><span>Manage Users</span>
+        </li>
+        
+        <li onclick="saveSidebarState(); window.location.href='reports.php'">
+            <i class="fas fa-chart-line"></i><span>Reports</span>
+        </li>
+        
+        <li onclick="saveSidebarState(); window.location.href='categories.php'">
+            <i class="fas fa-tags"></i><span>Categories</span>
+        </li>
+        
+        <li onclick="saveSidebarState(); window.location.href='announcements.php'">
+            <i class="fas fa-bullhorn"></i><span>Announcements</span>
+        </li>
+        
+        <li onclick="confirmLogout()">
+            <i class="fas fa-right-from-bracket"></i><span>Logout</span>
+        </li>
     </ul>
 </div>
 
@@ -160,12 +177,11 @@ body{background:#f4f6fa;display:flex;min-height:100vh;overflow-x:hidden;color:#3
         </div>
     </div>
 
-    <!-- Quick Actions -->
     <div class="quick-actions">
-        <div class="action-btn" onclick="window.location='manage_users/'"><i class="fas fa-users"></i><span>Manage Users</span></div>
-        <div class="action-btn" onclick="window.location='generate_reports/'"><i class="fas fa-chart-line"></i><span>Reports</span></div>
-        <div class="action-btn" onclick="window.location='categories.php'"><i class="fas fa-tags"></i><span>Categories</span></div>
-        <div class="action-btn" onclick="window.location='announcements.php'"><i class="fas fa-bullhorn"></i><span>Announcements</span></div>
+        <div class="action-btn" onclick="saveSidebarState(); window.location='manage_user.php'"><i class="fas fa-users"></i><span>Manage Users</span></div>
+        <div class="action-btn" onclick="saveSidebarState(); window.location='reports.php'"><i class="fas fa-chart-line"></i><span>Reports</span></div>
+        <div class="action-btn" onclick="saveSidebarState(); window.location='categories.php'"><i class="fas fa-tags"></i><span>Categories</span></div>
+        <div class="action-btn" onclick="saveSidebarState(); window.location='announcements.php'"><i class="fas fa-bullhorn"></i><span>Announcements</span></div>
     </div>
 
     <!-- Dashboard Boxes -->
@@ -224,85 +240,141 @@ body{background:#f4f6fa;display:flex;min-height:100vh;overflow-x:hidden;color:#3
     </div>
 </div>
 
+<!-- IMPORTANT: Load the JavaScript file -->
+<script src="assets/js/dashboard.js"></script>
+
+<!-- Fallback JavaScript if dashboard.js doesn't load -->
 <script>
-// Sidebar toggle for header and sidebar
-const sidebar = document.getElementById('sidebar');
-const headerToggle = document.getElementById('sidebarToggle');
-const sidebarToggle = document.getElementById('toggleSidebar');
-
-[headerToggle, sidebarToggle].forEach(btn => {
-    btn.addEventListener('click', () => {
-        if(window.innerWidth <= 900){
-            sidebar.classList.toggle('show');
-        } else {
-            sidebar.classList.toggle('folded');
-        }
-    });
-});
-
-// Close sidebar on mobile click outside
-document.addEventListener('click', e => {
-    if(window.innerWidth <= 900 && !sidebar.contains(e.target) && ![headerToggle, sidebarToggle].some(b=>b.contains(e.target))){
-        sidebar.classList.remove('show');
+// ===== BASIC LOGOUT FUNCTIONS (FALLBACK) =====
+function confirmLogout() {
+    if (confirm('Are you sure you want to logout? You will be redirected to home page.')) {
+        saveSidebarState();
+        window.location.href = 'auth/logout.php';
     }
-});
+}
 
-// Sidebar nav
-document.querySelectorAll('.sidebar ul li').forEach(li=>{
-    li.addEventListener('click', function(){
-        const page=this.dataset.page;
-        if(page && page!="#") window.location=page;
-    });
-});
-
-// Highlight current page
-const currentPage = location.pathname.split("/").pop();
-document.querySelectorAll('.sidebar ul li').forEach(li => {
-    if(li.dataset.page && currentPage.includes(li.dataset.page)) li.classList.add('active');
-});
-
-// Chart.js
-const ctx = document.getElementById('systemChart').getContext('2d');
-new Chart(ctx, {
-    type:'doughnut',
-    data:{
-        labels:['Users','Lost Items','Found Items','Claims'],
-        datasets:[{
-            label:'System Stats',
-            data:[
-                parseInt(document.getElementById('totalUsers').textContent),
-                parseInt(document.getElementById('totalLost').textContent),
-                parseInt(document.getElementById('totalFound').textContent),
-                parseInt(document.getElementById('totalClaims').textContent)
-            ],
-            backgroundColor:['rgba(255,193,7,0.8)','rgba(255,107,107,0.8)','rgba(30,144,255,0.8)','rgba(76,175,80,0.8)'],
-            borderColor:['rgba(255,193,7,1)','rgba(255,107,107,1)','rgba(30,144,255,1)','rgba(76,175,80,1)'],
-            borderWidth:2
-        }]
-    },
-    options:{responsive:true, plugins:{legend:{position:'bottom',labels:{padding:20,usePointStyle:true}},title:{display:true,text:'System Overview'}}, cutout:'65%'}
-});
-
-// Live Search
-const searchInput = document.getElementById('globalSearch');
-const searchResults = document.querySelector('.search-results');
-
-searchInput.addEventListener('input', async function() {
-    const query = this.value.trim();
-    if(query.length < 2){ searchResults.style.display='none'; searchResults.innerHTML=''; return; }
-    try {
-        const response = await fetch(`search.php?q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        if(data.length>0){
-            searchResults.innerHTML = data.map(item=>`<div class="result-item" onclick="window.location='${item.link}'"><strong>${item.name}</strong> <small>(${item.type})</small></div>`).join('');
-            searchResults.style.display='block';
-        } else {
-            searchResults.innerHTML = '<div class="result-item">No results found</div>';
-            searchResults.style.display='block';
+function saveSidebarState() {
+    if (window.innerWidth > 900) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            const isFolded = sidebar.classList.contains('folded');
+            localStorage.setItem('sidebarFolded', isFolded);
         }
-    } catch(err){ console.error(err); }
+    }
+}
+
+// ===== BASIC PAGE INITIALIZATION =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard.php: Page loaded');
+    
+    // Load sidebar state
+    if (window.innerWidth > 900) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            const savedState = localStorage.getItem('sidebarFolded');
+            console.log('Saved sidebar state:', savedState);
+            if (savedState === 'true') {
+                sidebar.classList.add('folded');
+            } else {
+                sidebar.classList.remove('folded');
+            }
+        }
+    }
+    
+    // Basic sidebar toggle
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const toggleSidebarLogo = document.getElementById('toggleSidebar');
+    
+    if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener('click', function() {
+            if(window.innerWidth <= 900){
+                sidebar.classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('folded');
+                localStorage.setItem('sidebarFolded', sidebar.classList.contains('folded'));
+            }
+        });
+    }
+    
+    if (toggleSidebarLogo && sidebar) {
+        toggleSidebarLogo.addEventListener('click', function() {
+            if(window.innerWidth <= 900){
+                sidebar.classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('folded');
+                localStorage.setItem('sidebarFolded', sidebar.classList.contains('folded'));
+            }
+        });
+    }
+    
+    // Close sidebar on mobile click outside
+    document.addEventListener('click', function(e) {
+        if(window.innerWidth <= 900 && sidebar && !sidebar.contains(e.target)) {
+            if (sidebarToggle && !sidebarToggle.contains(e.target)) {
+                sidebar.classList.remove('show');
+            }
+        }
+    });
+    
+    // Highlight current page
+    highlightActivePage();
+    
+    // Initialize Chart.js
+    initChart();
 });
-document.addEventListener('click', e => { if(!searchResults.contains(e.target) && e.target!==searchInput) searchResults.style.display='none'; });
+
+function highlightActivePage() {
+    const currentPage = window.location.pathname.split('/').pop() || 'dashboard.php';
+    const menuItems = document.querySelectorAll('.sidebar ul li');
+    
+    menuItems.forEach(item => {
+        const onclick = item.getAttribute('onclick') || '';
+        if (onclick.includes(currentPage)) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+function initChart() {
+    const ctx = document.getElementById('systemChart');
+    if (!ctx) return;
+    
+    const totalUsers = parseInt(document.getElementById('totalUsers')?.textContent || 0);
+    const totalLost = parseInt(document.getElementById('totalLost')?.textContent || 0);
+    const totalFound = parseInt(document.getElementById('totalFound')?.textContent || 0);
+    const totalClaims = parseInt(document.getElementById('totalClaims')?.textContent || 0);
+    
+    new Chart(ctx.getContext('2d'), {
+        type:'doughnut',
+        data:{
+            labels:['Users','Lost Items','Found Items','Claims'],
+            datasets:[{
+                label:'System Stats',
+                data:[totalUsers, totalLost, totalFound, totalClaims],
+                backgroundColor:['rgba(255,193,7,0.8)','rgba(255,107,107,0.8)','rgba(30,144,255,0.8)','rgba(76,175,80,0.8)'],
+                borderColor:['rgba(255,193,7,1)','rgba(255,107,107,1)','rgba(30,144,255,1)','rgba(76,175,80,1)'],
+                borderWidth:2
+            }]
+        },
+        options:{responsive:true, plugins:{legend:{position:'bottom',labels:{padding:20,usePointStyle:true}},title:{display:true,text:'System Overview'}}, cutout:'65%'}
+    });
+}
+
+// Debug: Check if functions are loaded
+setTimeout(function() {
+    console.log('Functions check:');
+    console.log('- confirmLogout:', typeof confirmLogout);
+    console.log('- saveSidebarState:', typeof saveSidebarState);
+    
+    if (typeof confirmLogout !== 'function') {
+        console.error('confirmLogout function not found!');
+        alert('Error: Logout function not loaded. Please check JavaScript file.');
+    }
+}, 1000);
 </script>
+
 </body>
 </html>

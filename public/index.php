@@ -10,6 +10,44 @@
 * { margin:0; padding:0; box-sizing:border-box; font-family:'Arial',sans-serif; }
 body { background:#f0f4ff; color:#333; }
 
+/* LOGOUT SUCCESS MESSAGE */
+.logout-success-message {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #10b981;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    animation: slideInRight 0.3s ease-out;
+}
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(100px);
+    }
+}
+
 /* HEADER */
 header {
     width:100%;
@@ -418,6 +456,35 @@ footer a:hover { color:#1e90ff; }
 </style>
 </head>
 <body>
+
+<!-- LOGOUT SUCCESS MESSAGE (ADDED HERE) -->
+<?php if (isset($_GET['logout']) && $_GET['logout'] === 'success'): ?>
+<div id="logoutMessage" class="logout-success-message">
+    <i class="fas fa-check-circle"></i> 
+    <?php 
+    if (isset($_GET['message'])) {
+        echo htmlspecialchars(urldecode($_GET['message']));
+    } else {
+        echo 'You have been successfully logged out!';
+    }
+    ?>
+</div>
+
+<script>
+    // Auto-hide logout message after 3 seconds
+    setTimeout(function() {
+        const message = document.getElementById('logoutMessage');
+        if (message) {
+            message.style.animation = 'slideOutRight 0.3s ease-out forwards';
+            setTimeout(function() {
+                if (message.parentNode) {
+                    message.parentNode.removeChild(message);
+                }
+            }, 300);
+        }
+    }, 3000);
+</script>
+<?php endif; ?>
 
 <!-- HEADER -->
 <header>

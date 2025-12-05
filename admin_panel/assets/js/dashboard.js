@@ -266,6 +266,9 @@ function initChart() {
 }
 
 // ===== HELPER FUNCTIONS =====
+// dashboard.js - Fixed version
+
+// ===== NOTIFICATION SYSTEM =====
 function showNotification(message, type = 'info') {
     // Create notification element
     const notification = document.createElement('div');
@@ -307,6 +310,79 @@ function showNotification(message, type = 'info') {
     });
 }
 
-// Export functions for use in other scripts
+// ===== LOGOUT FUNCTION =====
+function confirmLogout() {
+    if (confirm('Are you sure you want to logout? You will be redirected to the home page.')) {
+        // Save sidebar state
+        saveSidebarState();
+        // Redirect to logout page
+        window.location.href = 'auth/logout.php';
+    }
+}
+
+function saveSidebarState() {
+    if (window.innerWidth > 900) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            const isFolded = sidebar.classList.contains('folded');
+            localStorage.setItem('sidebarFolded', isFolded);
+        }
+    }
+}
+
+// ===== HIGHLIGHT ACTIVE PAGE =====
+function highlightActivePage() {
+    const currentPage = window.location.pathname.split('/').pop() || 'dashboard.php';
+    const menuItems = document.querySelectorAll('.sidebar ul li');
+    
+    // Remove active class from all first
+    menuItems.forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Add active class to current page
+    menuItems.forEach(item => {
+        const onclick = item.getAttribute('onclick') || '';
+        if (onclick.includes(currentPage)) {
+            item.classList.add('active');
+        }
+    });
+}
+
+// ===== PAGE INITIALIZATION =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard.js: DOM loaded');
+    
+    // Load sidebar state
+    if (window.innerWidth > 900) {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+            const savedState = localStorage.getItem('sidebarFolded');
+            console.log('Saved sidebar state:', savedState);
+            if (savedState === 'true') {
+                sidebar.classList.add('folded');
+            } else {
+                sidebar.classList.remove('folded');
+            }
+        }
+    }
+    
+    // Highlight active page
+    highlightActivePage();
+    
+    // Initialize other functions (make sure these exist)
+    if (typeof initSidebar === 'function') initSidebar();
+    if (typeof initSearch === 'function') initSearch();
+    if (typeof initDashboardBoxes === 'function') initDashboardBoxes();
+    if (typeof initChart === 'function') initChart();
+    
+    // Debug: Check if logout functions are available
+    console.log('confirmLogout function available:', typeof confirmLogout);
+    console.log('saveSidebarState function available:', typeof saveSidebarState);
+});
+
+// ===== EXPORT FUNCTIONS =====
 window.toggleSidebar = toggleSidebar;
 window.showNotification = showNotification;
+window.confirmLogout = confirmLogout;
+window.saveSidebarState = saveSidebarState;

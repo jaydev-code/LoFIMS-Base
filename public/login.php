@@ -84,6 +84,7 @@ body {
 /* Login container */
 .login-container {
     background: rgba(255, 255, 255, 0.95);
+    
     backdrop-filter: blur(10px);
     border-radius:20px;
     box-shadow: 0 15px 35px rgba(0,0,0,0.1);
@@ -198,10 +199,6 @@ body {
 .alert-error{background:#f8d7da; color:#721c24; border:1px solid #f5c6cb;}
 .alert-success{background:#d4edda; color:#155724; border:1px solid #c3e6cb;}
 
-.login-link{text-align:center; margin-top:20px; color:#666; font-size:14px;}
-.login-link a{color:#1e90ff; text-decoration:none; font-weight:600;}
-.login-link a:hover{text-decoration:underline;}
-
 @media(max-width:480px){
     .login-container{margin:10px;}
     .login-form{padding:20px;}
@@ -278,9 +275,7 @@ body {
                     </button>
                 </div>
 
-                <div class="login-link">
-                    Don't have an account? <a href="register.php">Register here</a>
-                </div>
+                <!-- REMOVED: Registration link section -->
             </form>
         </div>
     </div>
@@ -346,4 +341,3 @@ canvas.addEventListener('mousemove', e=>{
 </script>
 </body>
 </html>
-
