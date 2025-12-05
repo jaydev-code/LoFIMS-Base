@@ -1,4 +1,73 @@
-// ----- Sidebar Toggle -----
+// ===== USER GUIDE - SIMPLE WORKING VERSION =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard loading...');
+    
+    // Get the guide elements
+    const guideSection = document.getElementById('userGuideSection');
+    const toggleBtn = document.getElementById('toggleGuideBtn');
+    const floatingBtn = document.getElementById('floatingShowGuide');
+    
+    // Check if elements exist
+    if (!guideSection || !toggleBtn || !floatingBtn) {
+        console.log('Guide elements not found, skipping guide functionality');
+        return;
+    }
+    
+    console.log('Guide elements found, initializing...');
+    
+    // Check if guide was hidden before
+    const isGuideHidden = localStorage.getItem('guideHidden') === 'true';
+    
+    // Set initial state
+    if (isGuideHidden) {
+        // Guide was hidden - keep it hidden
+        guideSection.style.display = 'none';
+        toggleBtn.innerHTML = '<i class="fas fa-eye"></i> <span>Show Guide</span>';
+        floatingBtn.style.display = 'flex'; // Show floating button
+        console.log('Guide initialized as HIDDEN');
+    } else {
+        // Guide should be visible (first time)
+        guideSection.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> <span>Hide Guide</span>';
+        floatingBtn.style.display = 'none'; // Hide floating button
+        console.log('Guide initialized as VISIBLE');
+    }
+    
+    // ===== CLICK TO HIDE GUIDE =====
+    toggleBtn.addEventListener('click', function() {
+        if (guideSection.style.display === 'none') {
+            // Guide is hidden, so show it
+            guideSection.style.display = 'block';
+            toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> <span>Hide Guide</span>';
+            floatingBtn.style.display = 'none';
+            localStorage.setItem('guideHidden', 'false');
+            console.log('Guide SHOWN');
+        } else {
+            // Guide is visible, so hide it
+            guideSection.style.display = 'none';
+            toggleBtn.innerHTML = '<i class="fas fa-eye"></i> <span>Show Guide</span>';
+            floatingBtn.style.display = 'flex';
+            localStorage.setItem('guideHidden', 'true');
+            console.log('Guide HIDDEN');
+        }
+    });
+    
+    // ===== CLICK FLOATING BUTTON TO SHOW GUIDE =====
+    floatingBtn.addEventListener('click', function() {
+        guideSection.style.display = 'block';
+        toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i> <span>Hide Guide</span>';
+        floatingBtn.style.display = 'none';
+        localStorage.setItem('guideHidden', 'false');
+        console.log('Guide shown from floating button');
+        
+        // Optional: Scroll to guide
+        guideSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    
+    console.log('User Guide functionality loaded successfully');
+});
+
+// ===== SIDEBAR TOGGLE (keep this) =====
 const sidebar = document.getElementById('sidebar');
 const toggleBtn = document.getElementById('sidebarToggle');
 const sidebarLogo = document.getElementById('toggleSidebar');
@@ -23,135 +92,12 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// ----- Floating Search Modal -----
-const searchInput = document.getElementById('globalSearch');
-const searchModal = document.getElementById('searchModal');
-const searchModalBody = document.getElementById('searchModalBody');
-const closeModal = document.getElementById('closeSearchModal');
-const closeModalFooter = document.getElementById('closeSearchModalFooter');
-const openFullResults = document.getElementById('openFullResults');
-
-function showSearchModal(content, query) {
-    if (searchModalBody) {
-        searchModalBody.innerHTML = content;
-    }
-    if (searchModal) {
-        searchModal.classList.add('show');
-        document.body.classList.add('modal-open');
-    }
-    if (openFullResults) {
-        openFullResults.href = '../public/search_results.php?query=' + encodeURIComponent(query);
-    }
-}
-
-function hideSearchModal() {
-    if (searchModal) {
-        searchModal.classList.remove('show');
-        document.body.classList.remove('modal-open');
-    }
-}
-
-if (searchInput) {
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const query = this.value.trim();
-            if (!query) return;
-
-            // Fetch search results via AJAX
-            fetch('../public/search_results_ajax.php?query=' + encodeURIComponent(query))
-                .then(res => res.text())
-                .then(data => {
-                    // Convert to cards
-                    let cards = '';
-                    const parser = new DOMParser();
-                    const htmlDoc = parser.parseFromString(data, 'text/html');
-                    htmlDoc.querySelectorAll('.result-item').forEach(item => {
-                        const title = item.querySelector('.title')?.innerText || '';
-                        const desc = item.querySelector('.desc')?.innerText || '';
-                        const date = item.querySelector('.date')?.innerText || '';
-                        cards += `<div class="search-card"><h5>${title}</h5><p>${desc}</p><small>${date}</small></div>`;
-                    });
-                    showSearchModal(cards || '<p>No results found.</p>', query);
-                })
-                .catch(err => showSearchModal('<p style="color:red;">Error fetching results.</p>', query));
-        }
-    });
-}
-
-if (closeModal) closeModal.addEventListener('click', hideSearchModal);
-if (closeModalFooter) closeModalFooter.addEventListener('click', hideSearchModal);
-
-// Close modal on ESC key
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && searchModal && searchModal.classList.contains('show')) {
-        hideSearchModal();
-    }
-});
-
-// Close modal on outside click
-if (searchModal) {
-    searchModal.addEventListener('click', (e) => {
-        if (e.target === searchModal) {
-            hideSearchModal();
-        }
-    });
-}
-
-// ----- Chart.js Doughnut Chart -----
-const ctx = document.getElementById('itemsChart');
-if (ctx) {
-    // Get chart data from data attributes or global variables
-    const totalLost = window.totalLost || 0;
-    const totalFound = window.totalFound || 0;
-    const totalClaims = window.totalClaims || 0;
-    
-    const itemsChart = new Chart(ctx.getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Lost Items', 'Found Items', 'Claims'],
-            datasets: [{
-                label: 'System Statistics',
-                data: [totalLost, totalFound, totalClaims],
-                backgroundColor: [
-                    'rgba(255, 107, 107, 0.8)',
-                    'rgba(30, 144, 255, 0.8)',
-                    'rgba(76, 175, 80, 0.8)'
-                ],
-                borderColor: [
-                    'rgba(255, 107, 107, 1)',
-                    'rgba(30, 144, 255, 1)',
-                    'rgba(76, 175, 80, 1)'
-                ],
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { 
-                    position: 'bottom', 
-                    labels: { 
-                        padding: 20, 
-                        usePointStyle: true 
-                    } 
-                },
-                title: { 
-                    display: true, 
-                    text: 'System Overview' 
-                }
-            },
-            cutout: '65%'
-        }
-    });
-}
-
-// ----- LOGOUT CONFIRMATION -----
+// ===== LOGOUT CONFIRMATION (keep this) =====
 function confirmLogout(event) {
     if (event) {
-        event.preventDefault(); // Prevent default link behavior
+        event.preventDefault();
     }
     
-    // Create custom confirmation modal
     const modal = document.createElement('div');
     modal.style.cssText = `
         position: fixed;
@@ -216,7 +162,6 @@ function confirmLogout(event) {
     
     document.body.appendChild(modal);
     
-    // Add event listeners
     const cancelBtn = modal.querySelector('#logoutCancel');
     const confirmBtn = modal.querySelector('#logoutConfirm');
     
@@ -228,19 +173,16 @@ function confirmLogout(event) {
     
     if (confirmBtn) {
         confirmBtn.addEventListener('click', function() {
-            // Redirect to logout page which will redirect to homepage
             window.location.href = '../auth/logout.php';
         });
     }
     
-    // Close modal when clicking outside
     modal.addEventListener('click', function(e) {
         if (e.target === modal) {
             document.body.removeChild(modal);
         }
     });
     
-    // Close on ESC key
     const closeOnEsc = function(e) {
         if (e.key === 'Escape') {
             document.body.removeChild(modal);
@@ -252,10 +194,22 @@ function confirmLogout(event) {
 
 // Add event listeners to logout links when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Find logout links and attach the confirmLogout function
     document.querySelectorAll('a[href*="logout"]').forEach(link => {
         if (link.getAttribute('href').includes('logout')) {
             link.addEventListener('click', confirmLogout);
         }
     });
 });
+
+// ===== SEARCH FUNCTIONALITY (Optional) =====
+const searchInput = document.getElementById('globalSearch');
+if (searchInput) {
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const query = this.value.trim();
+            if (query) {
+                window.location.href = `search.php?q=${encodeURIComponent(query)}`;
+            }
+        }
+    });
+}

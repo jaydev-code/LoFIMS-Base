@@ -65,14 +65,17 @@ try {
     $recentActivity = $recentActivity->fetchAll(PDO::FETCH_ASSOC);
 
     // Urgent items (lost in last 24 hours)
-    $urgentItems = $pdo->query("
+    $urgentItems = $pdo->prepare("
         SELECT li.*, ic.category_name
         FROM lost_items li
         LEFT JOIN item_categories ic ON li.category_id = ic.category_id
-        WHERE li.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        WHERE li.user_id = ?
+        AND li.created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
         AND li.status = 'Lost'
         ORDER BY li.created_at DESC LIMIT 5
-    ")->fetchAll(PDO::FETCH_ASSOC);
+    ");
+    $urgentItems->execute([$_SESSION['user_id']]);
+    $urgentItems = $urgentItems->fetchAll(PDO::FETCH_ASSOC);
 
     // Potential matches for user's lost items
     $potentialMatches = $pdo->prepare("
@@ -88,10 +91,10 @@ try {
         WHERE l.user_id = ?
         AND l.status = 'Lost'
         AND f.status = 'Found'
-        AND l.lost_id != f.found_id
+        AND f.user_id != ?
         ORDER BY match_score DESC LIMIT 3
     ");
-    $potentialMatches->execute([$_SESSION['user_id']]);
+    $potentialMatches->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
     $potentialMatches = $potentialMatches->fetchAll(PDO::FETCH_ASSOC);
 
     // Announcements
@@ -120,6 +123,308 @@ require_once 'includes/header.php';
 require_once 'includes/sidebar.php';
 ?>
 
+<style>
+    /* ANIMATIONS FOR USER GUIDE */
+    @keyframes slideInDown {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutUp {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+        40% {transform: translateY(-10px);}
+        60% {transform: translateY(-5px);}
+    }
+    
+    @keyframes shimmer {
+        0% { background-position: -200px 0; }
+        100% { background-position: calc(200px + 100%) 0; }
+    }
+    
+    /* User Guide Styles with Animations */
+    .user-guide-container {
+        margin-bottom: 25px;
+        overflow: hidden;
+    }
+    
+    .simple-guide-section {
+        background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        position: relative;
+        overflow: hidden;
+        animation: slideInDown 0.5s ease-out;
+    }
+    
+    .simple-guide-section.hiding {
+        animation: slideOutUp 0.3s ease-out forwards;
+    }
+    
+    .simple-guide-section::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #ef4444, #10b981, #3b82f6, #8b5cf6);
+        background-size: 200% 100%;
+        animation: shimmer 3s infinite linear;
+    }
+    
+    .guide-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e2e8f0;
+        animation: fadeIn 0.6s ease-out 0.2s both;
+    }
+    
+    .guide-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .guide-title i {
+        color: #3b82f6;
+        font-size: 22px;
+        animation: bounce 2s infinite;
+    }
+    
+    .guide-title h3 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 18px;
+        font-weight: 600;
+    }
+    
+    #hideGuideBtn {
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #64748b;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    #hideGuideBtn:hover {
+        background: #e2e8f0;
+        transform: translateY(-2px);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    }
+    
+    .guide-steps-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 15px;
+        animation: fadeIn 0.8s ease-out 0.4s both;
+    }
+    
+    .guide-step-card {
+        background: white;
+        padding: 18px;
+        border-radius: 10px;
+        border-left: 4px solid;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .guide-step-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    .guide-step-card::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+        transform: translateX(-100%);
+        transition: transform 0.6s;
+    }
+    
+    .guide-step-card:hover::after {
+        transform: translateX(100%);
+    }
+    
+    .step-number {
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 12px;
+        animation: pulse 2s infinite;
+    }
+    
+    .step-content {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .step-title {
+        color: #1e293b;
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .step-description {
+        color: #64748b;
+        font-size: 13px;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
+    
+    .step-action {
+        background: linear-gradient(135deg, currentColor, currentColor);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 5px;
+        text-decoration: none;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+    
+    .step-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        filter: brightness(110%);
+    }
+    
+    /* Color variations for each step */
+    .step-1 { border-left-color: #ef4444; }
+    .step-1 .step-action { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    
+    .step-2 { border-left-color: #10b981; }
+    .step-2 .step-action { background: linear-gradient(135deg, #10b981, #059669); }
+    
+    .step-3 { border-left-color: #3b82f6; }
+    .step-3 .step-action { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    
+    .step-4 { border-left-color: #8b5cf6; }
+    .step-4 .step-action { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    
+    /* Show Guide Button Animation */
+    #showGuideBtn {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        border: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    #showGuideBtn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
+    }
+    
+    #showGuideBtn:active {
+        transform: translateY(-1px);
+    }
+    
+    #showGuideBtn::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+    }
+    
+    #showGuideBtn:hover::after {
+        left: 100%;
+    }
+    
+    /* Floating animation for new users */
+    .new-user-pulse {
+        animation: pulse 1.5s infinite;
+    }
+    
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .guide-steps-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .simple-guide-section {
+            padding: 15px;
+        }
+        
+        .guide-step-card {
+            padding: 15px;
+        }
+    }
+</style>
+
 <!-- Main Content -->
 <div class="main">
     <!-- Header -->
@@ -142,6 +447,87 @@ require_once 'includes/sidebar.php';
         <div class="page-title">
             <i class="fas fa-home"></i>
             Dashboard
+            <!-- SHOW GUIDE BUTTON with pulse animation for new users -->
+            <button id="showGuideBtn" class="new-user-pulse">
+                <i class="fas fa-graduation-cap"></i> Show User Guide
+            </button>
+        </div>
+
+        <!-- USER GUIDE SECTION with animations -->
+        <div class="user-guide-container">
+            <div class="simple-guide-section" id="userGuideSection" style="display: none;">
+                <div class="guide-header">
+                    <div class="guide-title">
+                        <i class="fas fa-graduation-cap"></i>
+                        <h3>Quick Start Guide</h3>
+                    </div>
+                    <button id="hideGuideBtn">
+                        <i class="fas fa-times"></i> Hide Guide
+                    </button>
+                </div>
+                
+                <div class="guide-steps-grid">
+                    <!-- Step 1 -->
+                    <div class="guide-step-card step-1">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <div class="step-title">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <span>Lost an Item?</span>
+                            </div>
+                            <p class="step-description">Report it immediately to increase recovery chances.</p>
+                            <a href="lost_items.php" class="step-action">
+                                <i class="fas fa-plus"></i> Report Lost
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2 -->
+                    <div class="guide-step-card step-2">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <div class="step-title">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Found an Item?</span>
+                            </div>
+                            <p class="step-description">Help others by reporting found items.</p>
+                            <a href="found_items.php" class="step-action">
+                                <i class="fas fa-plus"></i> Report Found
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3 -->
+                    <div class="guide-step-card step-3">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <div class="step-title">
+                                <i class="fas fa-search"></i>
+                                <span>Search Items</span>
+                            </div>
+                            <p class="step-description">Browse found items to find your belongings.</p>
+                            <a href="found_items.php" class="step-action">
+                                <i class="fas fa-search"></i> Browse Items
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 4 -->
+                    <div class="guide-step-card step-4">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <div class="step-title">
+                                <i class="fas fa-handshake"></i>
+                                <span>File a Claim</span>
+                            </div>
+                            <p class="step-description">Found a match? File a claim to get your item back.</p>
+                            <a href="claims.php" class="step-action">
+                                <i class="fas fa-handshake"></i> File Claim
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Quick Actions -->
@@ -230,7 +616,7 @@ require_once 'includes/sidebar.php';
             <div class="right-column">
                 <!-- Urgent Items -->
                 <div class="card urgent-card">
-                    <h3><i class="fas fa-exclamation-triangle"></i> Urgent Items</h3>
+                    <h3><i class="fas fa-exclamation-triangle"></i> My Urgent Items</h3>
                     <?php if($urgentItems): ?>
                         <?php foreach($urgentItems as $item): ?>
                             <div class="activity-item">
@@ -312,65 +698,113 @@ require_once 'includes/sidebar.php';
     </div>
 </div>
 
-<style>
-/* Dashboard specific styles - NO sidebar styles here! */
-.card {
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    border: 1px solid #e2e8f0;
-    margin-bottom: 25px;
-}
-
-.card h3 {
-    margin-bottom: 20px;
-    color: #1e293b;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.card h3 i {
-    color: #3b82f6;
-}
-
-.urgent-card h3 i {
-    color: #ef4444;
-}
-
-.activity-date {
-    font-size: 12px;
-    color: #64748b;
-}
-
-.empty-message {
-    color: #64748b;
-    text-align: center;
-    padding: 20px;
-}
-
-.match-item {
-    padding: 15px;
-    background: #f8fafc;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    border-left: 4px solid #10b981;
-}
-
-.match-score {
-    background: #10b981;
-    color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: bold;
-    float: right;
-}
-</style>
-
+<!-- ENHANCED USER GUIDE JAVASCRIPT WITH ANIMATIONS -->
 <script>
-// Chart.js for dashboard
+// ===== ENHANCED USER GUIDE FUNCTIONALITY WITH ANIMATIONS =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard loading with animations...');
+    
+    // Get guide elements
+    var guide = document.getElementById('userGuideSection');
+    var showBtn = document.getElementById('showGuideBtn');
+    var hideBtn = document.getElementById('hideGuideBtn');
+    
+    // If guide elements don't exist, skip
+    if (!guide || !showBtn || !hideBtn) {
+        console.log('Guide elements not found');
+        return;
+    }
+    
+    console.log('All guide elements found');
+    
+    // Check if guide was hidden before
+    var isHidden = localStorage.getItem('guideHidden') === 'true';
+    console.log('Guide was hidden before?', isHidden);
+    
+    // Set initial state - ALWAYS HIDDEN on page load
+    guide.style.display = 'none';
+    
+    // Remove pulse animation from show button after 10 seconds
+    setTimeout(function() {
+        showBtn.classList.remove('new-user-pulse');
+    }, 10000);
+    
+    // Add click event to SHOW button with animation
+    showBtn.addEventListener('click', function() {
+        console.log('Show button clicked');
+        
+        // Add click animation to button
+        this.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            this.style.transform = '';
+        }, 150);
+        
+        // Remove pulse animation
+        this.classList.remove('new-user-pulse');
+        
+        // Show guide with animation
+        guide.style.display = 'block';
+        guide.classList.remove('hiding');
+        
+        // Save state
+        localStorage.setItem('guideHidden', 'false');
+        
+        console.log('Guide SHOWN with animation');
+        
+        // Scroll to guide smoothly
+        setTimeout(() => {
+            guide.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 100);
+    });
+    
+    // Add click event to HIDE button with animation
+    hideBtn.addEventListener('click', function() {
+        console.log('Hide button clicked');
+        
+        // Add click animation to button
+        this.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            this.style.transform = '';
+        }, 150);
+        
+        // Hide guide with animation
+        guide.classList.add('hiding');
+        
+        // Wait for animation to complete before hiding
+        setTimeout(() => {
+            guide.style.display = 'none';
+            guide.classList.remove('hiding');
+        }, 300); // Match animation duration
+        
+        // Save state
+        localStorage.setItem('guideHidden', 'true');
+        
+        console.log('Guide HIDDEN with animation');
+    });
+    
+    // Add hover effect to guide cards
+    var guideCards = document.querySelectorAll('.guide-step-card');
+    guideCards.forEach(function(card, index) {
+        // Add staggered animation delay
+        card.style.animationDelay = (index * 0.1) + 's';
+        
+        // Add hover sound effect simulation
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+    
+    console.log('Enhanced guide functionality with animations ready');
+});
+
+// ===== CHART.JS FOR DASHBOARD =====
 document.addEventListener('DOMContentLoaded', function() {
     const ctx = document.getElementById('itemsChart');
     if (ctx) {
@@ -405,7 +839,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         } 
                     }
                 },
-                cutout: '65%'
+                cutout: '65%',
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
             }
         });
     }
