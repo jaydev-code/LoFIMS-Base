@@ -254,9 +254,11 @@ try {
             <i class="fas fa-bars"></i>
         </div>
         <div class="user-info">
-            <i class="fas fa-user-circle"></i> 
-            Hello, <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
-        </div>
+    <a href="profile/view.php" style="color: inherit; text-decoration: none; display: flex; align-items: center; gap: 10px; cursor: pointer;">
+        <i class="fas fa-user-circle"></i> 
+        Hello, <?php echo htmlspecialchars($user['first_name'] . ' ' . $user['last_name']); ?>
+    </a>
+</div>
         <div class="search-bar" role="search">
             <input type="text" id="globalSearch" placeholder="Search found items...">
             <i class="fas fa-search" id="searchIcon"></i>

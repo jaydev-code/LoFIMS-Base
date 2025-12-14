@@ -223,8 +223,8 @@ $page_title = "View Lost Item";
         }
         
         .item-photo img {
-            max-width: 300px;
-            max-height: 300px;
+            max-width: 100%;
+            max-height: 400px;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             border: 1px solid #e2e8f0;
@@ -235,6 +235,7 @@ $page_title = "View Lost Item";
             padding: 40px;
             border-radius: 8px;
             color: #64748b;
+            text-align: center;
         }
         
         .no-photo i {
@@ -307,6 +308,21 @@ $page_title = "View Lost Item";
             margin-bottom: 15px;
             display: block;
             color: #cbd5e1;
+        }
+        
+        .photo-url-test {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        .photo-url-test a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        .photo-url-test a:hover {
+            text-decoration: underline;
         }
         
         @media (max-width: 768px) {
@@ -419,21 +435,39 @@ $page_title = "View Lost Item";
                 </div>
                 
                 <div>
-                    <!-- Item Photo -->
+                    <!-- Item Photo - FIXED SECTION -->
                     <div class="detail-section">
                         <h3><i class="fas fa-camera"></i> Item Photo</h3>
                         <div class="detail-content">
                             <div class="item-photo">
                                 <?php if(!empty($item['photo'])): ?>
                                     <?php
-                                    $photo_path = '../../../../uploads/lost_items/' . $item['photo'];
-                                    if (file_exists($photo_path)): ?>
-                                        <img src="../../../../uploads/lost_items/<?php echo htmlspecialchars($item['photo']); ?>" 
-                                             alt="<?php echo htmlspecialchars($item['item_name']); ?>">
+                                    // Use consistent path with edit.php and add.php
+                                    $uploadDir = '/var/www/html/LoFIMS_BASE/uploads/lost_items/';
+                                    $absolute_path = $uploadDir . $item['photo'];
+                                    $web_url = '/LoFIMS_BASE/uploads/lost_items/' . $item['photo'];
+                                    $full_web_url = 'http://' . $_SERVER['HTTP_HOST'] . $web_url;
+                                    
+                                    // Check if file exists
+                                    if (file_exists($absolute_path)): ?>
+                                        <img src="<?php echo htmlspecialchars($web_url); ?>" 
+                                             alt="<?php echo htmlspecialchars($item['item_name']); ?>"
+                                             onclick="openFullImage('<?php echo htmlspecialchars($full_web_url); ?>')"
+                                             style="cursor: pointer; max-width: 100%; height: auto;">
+                                        <div class="photo-url-test">
+                                            <p>Click image to view full size or 
+                                            <a href="<?php echo htmlspecialchars($full_web_url); ?>" target="_blank">open in new tab</a></p>
+                                        </div>
                                     <?php else: ?>
                                         <div class="no-photo">
-                                            <i class="fas fa-image"></i>
-                                            <p>Photo not found on server</p>
+                                            <i class="fas fa-exclamation-circle"></i>
+                                            <p>Photo file not found on server.</p>
+                                            <div class="photo-url-test">
+                                                <p>Expected location: <?php echo htmlspecialchars($absolute_path); ?></p>
+                                                <p>Try accessing: <a href="<?php echo htmlspecialchars($full_web_url); ?>" target="_blank">
+                                                    <?php echo htmlspecialchars($full_web_url); ?>
+                                                </a></p>
+                                            </div>
                                         </div>
                                     <?php endif; ?>
                                 <?php else: ?>
@@ -541,6 +575,10 @@ function markAsRecovered(lostId) {
                 alert('Network error. Please try again.');
             });
     }
+}
+
+function openFullImage(url) {
+    window.open(url, '_blank', 'width=800,height=600,scrollbars=yes');
 }
 </script>
 </body>

@@ -82,60 +82,100 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
                 $originalName = $_FILES['photo']['name'];
-                $fileExt = '';
+                $fileTmpPath = $_FILES['photo']['tmp_name'];
+                $fileSize = $_FILES['photo']['size'];
                 
-                if (strpos($originalName, '.') !== false) {
-                    $fileExt = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-                }
+                // Get file extension
+                $fileExtension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
                 
                 $allowedTypes = ['jpg', 'jpeg', 'png', 'gif'];
                 
-                if (!empty($fileExt) && in_array($fileExt, $allowedTypes)) {
-                    $uploadDir = __DIR__ . '/../../../../uploads/lost_items/';
+                if (in_array($fileExtension, $allowedTypes)) {
+                    // Use consistent upload directory
+                    $uploadDir = '/var/www/html/LoFIMS_BASE/uploads/lost_items/';
                     
+                    // Create directory if it doesn't exist
                     if (!is_dir($uploadDir)) {
                         mkdir($uploadDir, 0755, true);
                     }
                     
-                    // Delete old photo if exists
-                    if (!empty($item['photo']) && file_exists($uploadDir . $item['photo'])) {
-                        unlink($uploadDir . $item['photo']);
-                    }
-                    
-                    $fileName = time() . '_' . uniqid() . '.' . $fileExt;
-                    $targetFile = $uploadDir . $fileName;
-                    
-                    if (move_uploaded_file($_FILES['photo']['tmp_name'], $targetFile)) {
-                        $photo = $fileName;
+                    // Check if directory is writable
+                    if (is_writable($uploadDir)) {
+                        // Delete old photo if exists and we're uploading new one
+                        if (!empty($item['photo'])) {
+                            $oldPhotoPath = $uploadDir . $item['photo'];
+                            if (file_exists($oldPhotoPath)) {
+                                @unlink($oldPhotoPath);
+                            }
+                        }
+                        
+                        // Create unique filename
+                        $fileName = time() . '_' . uniqid() . '.' . $fileExtension;
+                        $targetFile = $uploadDir . $fileName;
+                        
+                        // Check file size (5MB limit)
+                        $maxFileSize = 5 * 1024 * 1024; // 5MB
+                        if ($fileSize > $maxFileSize) {
+                            $error = "File is too large. Maximum size is 5MB.";
+                        } else {
+                            // Try to move the uploaded file
+                            if (move_uploaded_file($fileTmpPath, $targetFile)) {
+                                $photo = $fileName;
+                            } else {
+                                $lastError = error_get_last();
+                                $error = "Failed to upload file.";
+                                if ($lastError) {
+                                    $error .= " Error: " . $lastError['message'];
+                                }
+                            }
+                        }
                     } else {
-                        $error = "Failed to upload file. Please try again.";
+                        $error = "Upload directory is not writable.";
                     }
                 } else {
                     $error = "Only JPG, JPEG, PNG & GIF files are allowed.";
                 }
+            } else if (isset($_FILES['photo'])) {
+                // Only show error if user tried to upload but there was an error
+                if ($_FILES['photo']['error'] !== UPLOAD_ERR_NO_FILE && $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+                    switch ($_FILES['photo']['error']) {
+                        case UPLOAD_ERR_INI_SIZE:
+                        case UPLOAD_ERR_FORM_SIZE:
+                            $error = "File is too large. Maximum size is 5MB.";
+                            break;
+                        case UPLOAD_ERR_PARTIAL:
+                            $error = "File upload was incomplete.";
+                            break;
+                        default:
+                            $error = "Upload error. Please try again.";
+                    }
+                }
             }
             
-            // Handle photo removal
+            // Handle photo removal checkbox
             if (isset($_POST['remove_photo']) && $_POST['remove_photo'] == '1') {
                 if (!empty($item['photo'])) {
-                    $uploadDir = __DIR__ . '/../../../../uploads/lost_items/';
-                    if (file_exists($uploadDir . $item['photo'])) {
-                        unlink($uploadDir . $item['photo']);
+                    $uploadDir = '/var/www/html/LoFIMS_BASE/uploads/lost_items/';
+                    $oldPhotoPath = $uploadDir . $item['photo'];
+                    
+                    if (file_exists($oldPhotoPath)) {
+                        @unlink($oldPhotoPath);
                     }
                     $photo = '';
                 }
             }
             
+            // Only update database if no errors
             if (empty($error)) {
                 // Update database
                 $stmt = $pdo->prepare("
                     UPDATE lost_items 
                     SET item_name = ?, category_id = ?, description = ?, photo = ?, 
-                        place_lost = ?, date_reported = ?, location_lost = ?
+                        place_lost = ?, date_reported = ?, location_lost = ?, updated_at = NOW()
                     WHERE lost_id = ? AND user_id = ?
                 ");
                 
-                $stmt->execute([
+                $result = $stmt->execute([
                     $item_name,
                     $category_id ?: NULL,
                     $description,
@@ -147,18 +187,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['user_id']
                 ]);
                 
-                $success = "Lost item updated successfully!";
-                
-                // Refresh item data
-                $stmt = $pdo->prepare("
-                    SELECT li.*, ic.category_name
-                    FROM lost_items li 
-                    LEFT JOIN item_categories ic ON li.category_id = ic.category_id 
-                    WHERE li.lost_id = ? AND li.user_id = ?
-                ");
-                $stmt->execute([$item_id, $_SESSION['user_id']]);
-                $item = $stmt->fetch(PDO::FETCH_ASSOC);
-                
+                if ($result) {
+                    $success = "Lost item updated successfully!";
+                    
+                    // Refresh item data
+                    $stmt = $pdo->prepare("
+                        SELECT li.*, ic.category_name
+                        FROM lost_items li 
+                        LEFT JOIN item_categories ic ON li.category_id = ic.category_id 
+                        WHERE li.lost_id = ? AND li.user_id = ?
+                    ");
+                    $stmt->execute([$item_id, $_SESSION['user_id']]);
+                    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+                } else {
+                    $error = "Failed to update database.";
+                }
             }
             
         } catch(PDOException $e) {
@@ -376,9 +419,14 @@ $current_page = 'edit_lost_item.php';
         <?php if($success): ?>
         <div class="alert alert-success">
             <i class="fas fa-check-circle"></i> <?php echo htmlspecialchars($success); ?>
-            <a href="view.php?id=<?php echo $item['lost_id']; ?>" class="btn btn-primary" style="margin-left: 15px;">
-                <i class="fas fa-eye"></i> View Item
-            </a>
+            <div style="margin-top: 10px;">
+                <a href="view.php?id=<?php echo $item['lost_id']; ?>" class="btn btn-primary">
+                    <i class="fas fa-eye"></i> View Item
+                </a>
+                <a href="../../lost_items.php" class="btn btn-secondary">
+                    <i class="fas fa-list"></i> Back to List
+                </a>
+            </div>
         </div>
         <?php endif; ?>
 
@@ -467,15 +515,25 @@ $current_page = 'edit_lost_item.php';
                     <?php if(!empty($item['photo'])): ?>
                         <div class="current-photo">
                             <p><strong>Current Photo:</strong></p>
-                            <img src="../../../../uploads/lost_items/<?php echo htmlspecialchars($item['photo']); ?>" 
-                                 alt="Current photo" 
-                                 class="preview-image"
-                                 onerror="this.style.display='none'; document.getElementById('no-photo-msg').style.display='block';">
-                            <p id="no-photo-msg" style="display: none; color: #64748b;">Photo not found</p>
-                            <div class="remove-photo-checkbox">
-                                <input type="checkbox" id="remove_photo" name="remove_photo" value="1">
-                                <label for="remove_photo">Remove current photo</label>
-                            </div>
+                            <?php
+                            $uploadDir = '/var/www/html/LoFIMS_BASE/uploads/lost_items/';
+                            $absolute_path = $uploadDir . $item['photo'];
+                            $web_url = '/LoFIMS_BASE/uploads/lost_items/' . $item['photo'];
+                            ?>
+                            <?php if(file_exists($absolute_path)): ?>
+                                <img src="<?php echo htmlspecialchars($web_url); ?>" 
+                                     alt="Current photo" 
+                                     class="preview-image">
+                                <div class="remove-photo-checkbox">
+                                    <input type="checkbox" id="remove_photo" name="remove_photo" value="1">
+                                    <label for="remove_photo">Remove current photo</label>
+                                </div>
+                            <?php else: ?>
+                                <p style="color: #dc2626;">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Photo file not found on server.
+                                </p>
+                            <?php endif; ?>
                         </div>
                         <p style="color: #64748b; margin-top: 10px;">Or upload a new photo:</p>
                     <?php endif; ?>
